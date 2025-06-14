@@ -19,14 +19,39 @@ creds = ServiceAccountCredentials.from_json_keyfile_name("/etc/secrets/credentia
 client = gspread.authorize(creds)
 sheet = client.open(GOOGLE_SHEET_NAME).sheet1
 
+from flask import Flask, request, jsonify
+
+app = Flask(__name__)
+
+# Route للتأكد إن الـ webhook شغال
 @app.route("/", methods=["GET"])
 def health():
     return "Webhook is running!"
 
+# Webhook الرسمي اللي Respond.io هيبعتله البيانات
 @app.route("/webhook", methods=["POST"])
 def webhook():
     data = request.get_json()
 
+    # هنا ممكن تتعامل مع البيانات اللي جاية من Respond.io
+    user_message = data.get("user_message", "No message received")
+    phone_number = data.get("phone_number", "Unknown")
+
+    # رد تجريبي من البوت
+    bot_reply = f"رد تلقائي على: {user_message}"
+
+    return jsonify({
+        "user_message": user_message,
+        "bot_reply": bot_reply
+    })
+
+# Route لاختبار السيرفر من المتصفح
+@app.route("/test", methods=["GET"])
+def test():
+    return jsonify({
+        "user_message": "test message",
+        "bot_reply": "test reply"
+    })
     try:
         entry = data["entry"][0]["changes"][0]["value"]["messages"][0]
         user_message = entry["text"]["body"]
