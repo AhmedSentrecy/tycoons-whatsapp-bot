@@ -3,57 +3,53 @@ import requests
 
 app = Flask(__name__)
 
-# health check route
+CHATBASE_API_KEY = "3d722142-3344-4490-a741-72b9c614c19a"
+CHATBASE_BOT_ID = "KfOP1E1pvrQBRpn9tWcAE"
+
 @app.route("/", methods=["GET"])
-def health():
-    return "Webhook is running!"
+def home():
+    return "✅ Webhook is live and running"
 
 @app.route("/test", methods=["GET"])
 def test():
-    return jsonify({
-        "user_message": "test message",
-        "bot_reply": "test reply"
-    })
-
-# webhook endpoint
-CHATBASE_API_KEY = "3d722142-3344-4490-a741-72b9c614c19a"
-CHATBASE_BOT_ID = "KfOP1E1pvrQBRpn9tWcAE"
+    response = requests.post(
+        "https://www.chatbase.co/api/v1/chat",
+        headers={"Authorization": f"Bearer {CHATBASE_API_KEY}"},
+        json={
+            "chatbot_id": CHATBASE_BOT_ID,
+            "message": "Hello from test endpoint",
+            "stream": False
+        }
+    )
+    reply = response.json()["messages"][0]["content"] if response.ok else "❌ Chatbase did not reply"
+    return jsonify({"user_message": "Hello from test endpoint", "bot_reply": reply})
 
 @app.route("/webhook", methods=["POST"])
 def webhook():
     data = request.get_json()
-
     user_message = data.get("user_message", "")
-    phone_number = data.get("phone_number", "unknown")
+    phone_number = data.get("phone_number", "")
 
-    headers = {
-        "Authorization": f"Bearer {CHATBASE_API_KEY}",
-        "Content-Type": "application/json"
-    }
+    chatbase_response = requests.post(
+        "https://www.chatbase.co/api/v1/chat",
+        headers={"Authorization": f"Bearer {CHATBASE_API_KEY}"},
+        json={
+            "chatbot_id": CHATBASE_BOT_ID,
+            "message": user_message,
+            "stream": False
+        }
+    )
 
-    payload = {
-        "messages": [
-            {
-                "role": "user",
-                "content": user_message
-            }
-        ],
-        "chatbot_id": CHATBASE_BOT_ID,
-        "stream": False
-    }
-
-    response = requests.post("https://www.chatbase.co/api/v1/chat", headers=headers, json=payload)
-    
-    try:
-        bot_reply = response.json().get("messages", [{}])[0].get("content", "معذرة، لم أفهم الرسالة.")
-    except:
-        bot_reply = "حدث خطأ أثناء التواصل مع Chatbase."
+    if chatbase_response.ok:
+        bot_reply = chatbase_response.json()["messages"][0]["content"]
+    else:
+        bot_reply = "❌ Sorry, Chatbase did not respond."
 
     return jsonify({
+        "phone_number": phone_number,
         "user_message": user_message,
         "bot_reply": bot_reply
     })
+
 if __name__ == "__main__":
-    import os
-    port = int(os.environ.get("PORT", 5000))
-    app.run(host="0.0.0.0", port=port)
+    app.run(host="0.0.0.0", port=10000)
