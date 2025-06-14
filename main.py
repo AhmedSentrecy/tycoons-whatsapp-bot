@@ -14,7 +14,9 @@ PHONE_NUMBER_ID = os.environ.get("PHONE_NUMBER_ID")
 GOOGLE_SHEET_NAME = os.environ.get("GOOGLE_SHEET_NAME")
 
 scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
-creds = ServiceAccountCredentials.from_json_keyfile_name("credentials.json", scope)
+import json
+creds_json = json.loads(os.environ.get("GOOGLE_CREDENTIALS_JSON"))
+creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_json, scope)
 client = gspread.authorize(creds)
 sheet = client.open(GOOGLE_SHEET_NAME).sheet1
 
