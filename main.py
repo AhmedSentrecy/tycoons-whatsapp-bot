@@ -13,8 +13,14 @@ def health():
 
 @app.route("/webhook", methods=["POST"])
 def webhook():
-    data = request.get_json(force=True)
-    user_msg = data.get("input_flow_data") or data.get("message") or ""
+    data = request.get_json()
+    print(data)  # ← مهم جدًا علشان نعرف إذا جات بيانات من واتششمب ولا لأ
+
+    user_message = data.get("input_flow_data") or "No input"
+    print("User said:", user_message)
+
+    return jsonify({"bot_reply": "✅ test reply", "user_message": user_message})
+
     
     headers = {
         "Authorization": f"Bearer {CHATBASE_API_KEY}",
