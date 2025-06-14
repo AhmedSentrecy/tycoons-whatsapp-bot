@@ -1,135 +1,52 @@
 from flask import Flask, request, jsonify
-import requests
-import datetime
-import gspread
-from oauth2client.service_account import ServiceAccountCredentials
 import os
+import requests
 
 app = Flask(__name__)
 
-CHATBASE_API_KEY = os.environ.get("CHATBASE_API_KEY")
-CHATBASE_BOT_ID = os.environ.get("CHATBASE_BOT_ID")
-WHATSAPP_TOKEN = os.environ.get("WHATSAPP_TOKEN")
-PHONE_NUMBER_ID = os.environ.get("PHONE_NUMBER_ID")
-GOOGLE_SHEET_NAME = os.environ.get("GOOGLE_SHEET_NAME")
-
-scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
-import json
-creds = ServiceAccountCredentials.from_json_keyfile_name("/etc/secrets/credentials.json", scope)
-client = gspread.authorize(creds)
-sheet = client.open(GOOGLE_SHEET_NAME).sheet1
-
-from flask import Flask, request, jsonify
-
-app = Flask(__name__)
-
-# Route للتأكد إن الـ webhook شغال
 @app.route("/", methods=["GET"])
 def health():
     return "Webhook is running!"
 
-# Webhook الرسمي اللي Respond.io هيبعتله البيانات
 @app.route("/webhook", methods=["POST"])
 def webhook():
     data = request.get_json()
+    user_message = data.get("user_message", "")
+    phone_number = data.get("phone_number", "")
 
-    # هنا ممكن تتعامل مع البيانات اللي جاية من Respond.io
-    user_message = data.get("user_message", "No message received")
-    phone_number = data.get("phone_number", "Unknown")
+    CHATBASE_API_KEY = os.environ.get("CHATBASE_API_KEY")
+    CHATBASE_BOT_ID = os.environ.get("CHATBASE_BOT_ID")
 
-    # رد تجريبي من البوت
-    bot_reply = f"رد تلقائي على: {user_message}"
+    if not user_message or not phone_number or not CHATBASE_API_KEY or not CHATBASE_BOT_ID:
+        return jsonify({"error": "Missing required data"}), 400
+
+    try:
+        resp = requests.post(
+            "https://www.chatbase.co/api/v1/chat",
+            headers={
+                "Authorization": f"Bearer {CHATBASE_API_KEY}",
+                "Content-Type": "application/json"
+            },
+            json={
+                "messages": [{"role": "user", "content": user_message}],
+                "chatbot_id": CHATBASE_BOT_ID,
+                "stream": False
+            }
+        )
+        result = resp.json()
+        bot_reply = result["messages"][0]["content"]
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
     return jsonify({
+        "phone_number": phone_number,
         "user_message": user_message,
         "bot_reply": bot_reply
     })
 
-# Route لاختبار السيرفر من المتصفح
 @app.route("/test", methods=["GET"])
 def test():
     return jsonify({
         "user_message": "test message",
         "bot_reply": "test reply"
     })
-    try:
-        entry = data["entry"][0]["changes"][0]["value"]["messages"][0]
-        user_message = entry["text"]["body"]
-        phone_number = entry["from"]
-
-        chatbase_response = requests.post(
-            "https://www.chatbase.co/api/v1/chat",
-            headers={
-                "Authorization": f"Bearer " + CHATBASE_API_KEY,
-                "Content-Type": "application/json"
-            },
-            json={
-                "messages": [{"content": user_message, "role": "user"}],
-                "chatbot_id": CHATBASE_BOT_ID,
-                "stream": False
-            }
-        ).json()
-
-        bot_reply = chatbase_response["messages"][0]["content"]
-
-        requests.post(
-            f"https://graph.facebook.com/v18.0/{PHONE_NUMBER_ID}/messages",
-            headers={
-                "Authorization": f"Bearer " + WHATSAPP_TOKEN,
-                "Content-Type": "application/json"
-            },
-            json={
-                "messaging_product": "whatsapp",
-                "to": phone_number,
-                "type": "text",
-                "text": {"body": bot_reply}
-            }
-        )
-
-        sheet.append_row([
-            datetime.datetime.now().isoformat(),
-            phone_number,
-            user_message,
-            bot_reply
-        ])
-
-        return jsonify({"status": "success"}), 200
-
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-@app.route("/test", methods=["GET"])
-def test_bot():
-    user_message = "Hello, how can I buy a property?"
-    phone_number = "201234567890"
-
-    chatbase_response = requests.post(
-        "https://www.chatbase.co/api/v1/chat",
-        headers={
-            "Authorization": f"Bearer " + CHATBASE_API_KEY,
-            "Content-Type": "application/json"
-        },
-        json={
-            "messages": [{"content": user_message, "role": "user"}],
-            "chatbot_id": CHATBASE_BOT_ID,
-            "stream": False
-        }
-    ).json()
-
-    bot_reply = chatbase_response["messages"][0]["content"]
-
-    sheet.append_row([
-        datetime.datetime.now().isoformat(),
-        phone_number,
-        user_message,
-        bot_reply
-    ])
-
-    return jsonify({
-        "user_message": user_message,
-        "bot_reply": bot_reply
-    })
-
-port = int(os.environ.get("PORT", 10000))
-app.run(host="0.0.0.0", port=port)
-
