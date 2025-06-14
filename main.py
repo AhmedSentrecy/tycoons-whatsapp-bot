@@ -33,4 +33,30 @@ def get_chatbase_reply(user_message):
 # 🧠 Webhook endpoint (POST)
 @app.route("/webhook", methods=["POST"])
 def webhook():
-    data = request.g
+    data = request.get_json()
+    user_message = data.get("user_message", "")
+    bot_reply = get_chatbase_reply(user_message)
+    return jsonify({
+        "user_message": user_message,
+        "bot_reply": bot_reply
+    })
+
+# 🔍 Test endpoint
+@app.route("/test", methods=["GET"])
+def test():
+    user_message = "Hello from test endpoint"
+    bot_reply = get_chatbase_reply(user_message)
+    return jsonify({
+        "user_message": user_message,
+        "bot_reply": bot_reply
+    })
+
+# ✅ Health check
+@app.route("/", methods=["GET"])
+def health():
+    return "Webhook is running!"
+
+# 🚀 Run app on specified port (important for Render)
+if __name__ == "__main__":
+    port = int(os.environ.get("PORT", 10000))
+    app.run(host="0.0.0.0", port=port)
