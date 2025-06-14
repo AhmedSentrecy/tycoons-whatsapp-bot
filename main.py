@@ -105,5 +105,6 @@ def test_bot():
         "bot_reply": bot_reply
     })
 
-app.run(host="0.0.0.0", port=8080)
+port = int(os.environ.get("PORT", 10000))
+app.run(host="0.0.0.0", port=port)
 
