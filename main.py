@@ -13,7 +13,7 @@ def health():
 @app.route("/webhook", methods=["POST"])
 def webhook():
     data = request.get_json()
-    user_message = data.get("message", "")  # WatchChimp ممكن تبعت "message"
+    user_message = data.get("message", "")
 
     headers = {
         "Authorization": f"Bearer {CHATBASE_API_KEY}",
@@ -32,8 +32,8 @@ def webhook():
     except Exception as e:
         bot_reply = f"❌ Error: {str(e)}"
 
-    # هنا بنرجع المفتاح اللي ممكن WatchChimp يتعرف عليه
     return jsonify({"message": bot_reply})
+
 
 @app.route("/test", methods=["GET"])
 def test():
@@ -43,4 +43,4 @@ def test():
     })
 
 if __name__ == "__main__":
-    app.run(port=5000)
+    app.run(host="0.0.0.0", port=10000)
